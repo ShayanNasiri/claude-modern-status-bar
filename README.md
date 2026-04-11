@@ -42,7 +42,9 @@ The result is **~21 ms per render**, well under the ~30 ms ceiling where keystro
 
 1. Download `statusline.exe` from the [latest Release](https://github.com/ShayanNasiri/claude-modern-status-bar/releases/latest).
 2. Drop it at `%USERPROFILE%\.claude\statusline.exe`.
-3. Open `%USERPROFILE%\.claude\settings.json` and add (or merge) the following:
+3. Open `%USERPROFILE%\.claude\settings.json` and add the `statusLine` key. Replace `<your-username>` with your actual Windows username — forward slashes are fine, Claude Code accepts them.
+
+   **If `settings.json` does not exist yet**, create it with exactly this content:
 
    ```json
    {
@@ -53,7 +55,29 @@ The result is **~21 ms per render**, well under the ~30 ms ceiling where keystro
    }
    ```
 
-   Replace `<your-username>` with your actual Windows username. Forward slashes are fine — Claude Code accepts them.
+   **If `settings.json` already exists**, do not overwrite it — merge the `statusLine` key into the existing object alongside whatever is already there. For example, if your file currently looks like:
+
+   ```json
+   {
+     "theme": "dark",
+     "permissions": { "allow": ["Bash(git status)"] }
+   }
+   ```
+
+   it should become:
+
+   ```json
+   {
+     "theme": "dark",
+     "permissions": { "allow": ["Bash(git status)"] },
+     "statusLine": {
+       "type": "command",
+       "command": "C:/Users/<your-username>/.claude/statusline.exe"
+     }
+   }
+   ```
+
+   Mind the comma after the previous entry — JSON is strict about it.
 4. Done. No restart needed — the next time Claude Code renders the status bar, it spawns the new binary.
 
 ## Install — from source
@@ -173,6 +197,9 @@ In normal (non-post-compact) sessions, this binary matches `/context` within 2-3
 If you don't trust the prebuilt binary, build it yourself from `statusline.c`. It's ~280 lines, no dependencies beyond libc, and you can read the whole thing in 10 minutes. The intent is for the source to be small enough that "audit it yourself" is realistic, not aspirational.
 
 ## Troubleshooting
+
+**Windows SmartScreen blocks the download, or the file is marked "this file may harm your computer".**
+Expected behavior for any unsigned executable downloaded from the internet — it has nothing to do with what the binary actually does. The binary is built reproducibly by GitHub Actions on Microsoft's own `windows-latest` runners; you can audit the build recipe at [`.github/workflows/build.yml`](.github/workflows/build.yml) and inspect the workflow run history on the Actions tab. To unblock the downloaded file: right-click `statusline.exe` → **Properties** → tick **Unblock** at the bottom → **Apply**. If you'd rather skip the warning entirely, build from source — the source is ~280 lines and the build takes a few seconds.
 
 **The status bar shows boxes instead of emojis.**
 Your terminal isn't rendering UTF-8. Use [Windows Terminal](https://aka.ms/terminal). Legacy `cmd.exe` and old PowerShell consoles won't work.

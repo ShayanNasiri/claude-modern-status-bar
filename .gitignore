@@ -1,0 +1,22 @@
+# Build artifacts
+statusline.exe
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# MSVC IDE
+.vs/
+*.suo
+*.user
+*.vcxproj.user
+
+# Debug captures (created if statusline.c re-enables the debug stdin dump)
+statusline-last.json
+
+# OS clutter
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/

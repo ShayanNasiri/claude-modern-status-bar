@@ -15,7 +15,6 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **Brain context bar color is now bold pink (256-color 213)** instead of bold white, so it doesn't visually merge with the white-by-default rate-limit segments to its right.
-- **Render time improved to ~16 ms** (PowerShell `Measure-Command`, 20-run average), slightly faster than the 1.0.0 baseline despite the additional rate-limit parsing and rendering.
 
 ## [1.0.0] — 2026-04-11
 

@@ -1,6 +1,6 @@
 # claude-modern-status-bar
 
-A native C status line for [Claude Code](https://docs.claude.com/en/docs/claude-code) on Windows. Single ~430-line source file, compiles to a ~160 KB self-contained `.exe`, renders in **~16 ms** per invocation — roughly **90× faster** than the bash + python + git + awk pipeline most people start with.
+A native C status line for [Claude Code](https://docs.claude.com/en/docs/claude-code) on Windows. Single ~430-line source file, compiles to a ~160 KB self-contained `.exe`, renders in **~21 ms** per invocation — roughly **70× faster** than the bash + python + git + awk pipeline most people start with.
 
 ![Status bar screenshot](screenshots/statusbar.png)
 
@@ -31,7 +31,7 @@ This project replaces all of that with one ~430-line C file that:
 - statically links the C runtime (no DLL load)
 - writes UTF-8 + ANSI colors straight to stdout
 
-The result is **~16 ms per render**, well under the ~30 ms ceiling where keystroke lag becomes noticeable.
+The result is **~21 ms per render**, well under the ~30 ms ceiling where keystroke lag becomes noticeable.
 
 ## Requirements
 
@@ -160,7 +160,7 @@ Measure-Command { Get-Content test\mock.json -Raw | .\statusline.exe } | Select 
 | Original (bash + python + git + awk) | ~1500 ms |
 | All-in-one Python | ~420 ms |
 | `python -SE` (skip `site.py` + env scan) | ~111 ms |
-| **Native C (this repo)** | **~16 ms** |
+| **Native C (this repo)** | **~21 ms** |
 
 Bash benchmarks add ~80-130 ms of Git Bash fork overhead and are misleading. Claude Code spawns the binary via Win32 directly, so PowerShell numbers reflect production cost. **Always measure with PowerShell.**
 

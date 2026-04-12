@@ -1,8 +1,8 @@
 # claude-modern-status-bar
 
 Native C status line for Claude Code on Windows. Single ~430-line source file,
-compiles to a ~160 KB self-contained `.exe`. Renders in ~16 ms per invocation
-(measured with PowerShell `Measure-Command`) — roughly 90× faster than the
+compiles to a ~160 KB self-contained `.exe`. Renders in ~21 ms per invocation
+(measured with PowerShell `Measure-Command`) — roughly 70× faster than the
 original bash + python + git + awk pipeline it replaced.
 
 ## What it renders
@@ -140,7 +140,7 @@ fields just drop the corresponding segment from the rendered line.
 | Original (bash wrapper + python + git + awk) | ~1500 ms        |
 | All-in-one Python                            | ~420 ms         |
 | `python -SE` (skip `site.py` + env scan)     | ~111 ms         |
-| **Native C (this repo)**                     | **~16 ms**      |
+| **Native C (this repo)**                     | **~21 ms**      |
 
 Timings measured with PowerShell `Measure-Command` piping `test/mock.json`.
 Bash benchmarks add ~80-130 ms of Git Bash fork overhead and are misleading —

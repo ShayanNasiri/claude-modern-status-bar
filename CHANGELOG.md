@@ -5,6 +5,18 @@ All notable changes to claude-modern-status-bar are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **5-hour and weekly rate-limit segments.** Reads `rate_limits.five_hour.used_percentage` and `rate_limits.seven_day.used_percentage` from Claude Code's input JSON and renders each as its own ┃-bracketed segment with a clock or calendar icon. Color thresholds apply to both: white below 70%, yellow at 70–89%, red at 90%+. Either segment is omitted if the corresponding window is missing from the JSON.
+- **5-hour reset countdown.** Reads `rate_limits.five_hour.resets_at` (Unix epoch) and appends a human-readable countdown after a gray middle dot — formats as `47m` / `3h` / `1h 47m` / `<1m`. Inherits the same color threshold as the percentage. Omitted independently if `resets_at` is missing, zero, or already in the past.
+
+### Changed
+
+- **Brain context bar color is now bold pink (256-color 213)** instead of bold white, so it doesn't visually merge with the white-by-default rate-limit segments to its right.
+- **Render time improved to ~16 ms** (PowerShell `Measure-Command`, 20-run average), slightly faster than the 1.0.0 baseline despite the additional rate-limit parsing and rendering.
+
 ## [1.0.0] — 2026-04-11
 
 Initial public release.

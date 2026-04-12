@@ -15,6 +15,7 @@
 #include <string.h>
 #include <io.h>
 #include <fcntl.h>
+#include <time.h>
 
 /* ----------- JSON helpers (good enough for our known schema) ----------- */
 
@@ -227,6 +228,46 @@ int main(void) {
     long long cache_read     = json_get_int(cw, "cache_read_input_tokens", 0);
     long long used_tokens    = input_tokens + cache_creation + cache_read;
 
+    /* Rate-limit usage — same numbers /usage shows. Scoped per-window so the
+     * "used_percentage" lookup can't accidentally hit context_window's field
+     * (or the wrong rate-limit window). Both windows are optional, and the
+     * 5-hour reset countdown is independently optional — anything missing
+     * is just omitted from the rendered line. */
+    double    rl_5h_pct    = -1.0;
+    double    rl_wk_pct    = -1.0;
+    long long rl_5h_resets = 0;
+    const char *rl = strstr(input, "\"rate_limits\"");
+    if (rl) {
+        const char *fh = strstr(rl, "\"five_hour\"");
+        if (fh) {
+            rl_5h_pct    = json_get_double(fh, "used_percentage", -1.0);
+            rl_5h_resets = json_get_int(fh, "resets_at", 0);
+        }
+        const char *sd = strstr(rl, "\"seven_day\"");
+        if (sd) rl_wk_pct = json_get_double(sd, "used_percentage", -1.0);
+    }
+
+    /* Format the 5-hour reset countdown into a compact human-readable string:
+     *     <1m  |  47m  |  3h  |  1h 47m
+     * Empty string if resets_at is missing, zero, or already in the past. */
+    char reset_5h[16];
+    reset_5h[0] = 0;
+    if (rl_5h_resets > 0) {
+        long long secs = rl_5h_resets - (long long)time(NULL);
+        if (secs > 0) {
+            if (secs < 60) {
+                snprintf(reset_5h, sizeof(reset_5h), "<1m");
+            } else {
+                long long mins = (secs + 30) / 60;  /* round to nearest minute */
+                long long h = mins / 60;
+                long long m = mins % 60;
+                if (h == 0)      snprintf(reset_5h, sizeof(reset_5h), "%lldm", m);
+                else if (m == 0) snprintf(reset_5h, sizeof(reset_5h), "%lldh", h);
+                else             snprintf(reset_5h, sizeof(reset_5h), "%lldh %lldm", h, m);
+            }
+        }
+    }
+
     /* Autocompact reserve — the slice Claude Code withholds before auto-
      * compaction fires. Default 16.5% (matches the "Autocompact buffer" row
      * /context displays: 33k on a 200k window, 165k on a 1M window). The
@@ -331,10 +372,59 @@ int main(void) {
 
     if (free_pct >= 0 && bar[0]) {
         fputs(SEP, stdout);
-        /* 🧠 U+1F9E0 = F0 9F A7 A0 */
-        fputs("\x1b[1;37m\xf0\x9f\xa7\xa0 [", stdout);
+        /* 🧠 U+1F9E0 = F0 9F A7 A0. Color 213 (bold pink) — distinct from
+         * the white the rate-limit defaults render in, so the brain bar
+         * doesn't visually merge with the segments to its right. */
+        fputs("\x1b[1;38;5;213m\xf0\x9f\xa7\xa0 [", stdout);
         fputs(bar, stdout);
         printf("] %d%%", free_pct);
+        fputs("\x1b[0m", stdout);
+    }
+
+    /* Rate-limit segments. The 5-hour and weekly windows now live in their
+     * own ┃-bracketed chunks — once the 5h chunk gained a reset countdown
+     * it had enough internal structure that bundling it with the weekly
+     * percentage read as a tangle.
+     *
+     * Color thresholds apply to BOTH the percentage and the countdown text:
+     *   < 70%   white   (color 37)
+     *   70-89%  yellow  (color 220)
+     *   >= 90%  red     (color 196)
+     * The middle dot between the percentage and the countdown stays gray
+     * (color 245) — it's structural punctuation, not data. Each piece is
+     * independently optional: a missing percentage drops the whole chunk;
+     * a missing/stale resets_at drops just the countdown half. */
+    if (rl_5h_pct >= 0.0) {
+        int pct = (int)(rl_5h_pct + 0.5);
+        const char *col = "\x1b[37m";
+        if (pct >= 90)      col = "\x1b[38;5;196m";
+        else if (pct >= 70) col = "\x1b[38;5;220m";
+        fputs(SEP, stdout);
+        fputs(col, stdout);
+        /* ⏰ U+23F0 + VS16 = E2 8F B0 EF B8 8F */
+        fputs("\xe2\x8f\xb0\xef\xb8\x8f 5h ", stdout);
+        printf("%d%%", pct);
+        fputs("\x1b[0m", stdout);
+        if (reset_5h[0]) {
+            /* " · " — gray middle dot (U+00B7 = C2 B7) wrapped in color 245 */
+            fputs(" \x1b[38;5;245m\xc2\xb7\x1b[0m ", stdout);
+            fputs(col, stdout);
+            /* ♻ U+267B + VS16 = E2 99 BB EF B8 8F */
+            fputs("\xe2\x99\xbb\xef\xb8\x8f ", stdout);
+            fputs(reset_5h, stdout);
+            fputs("\x1b[0m", stdout);
+        }
+    }
+    if (rl_wk_pct >= 0.0) {
+        int pct = (int)(rl_wk_pct + 0.5);
+        const char *col = "\x1b[37m";
+        if (pct >= 90)      col = "\x1b[38;5;196m";
+        else if (pct >= 70) col = "\x1b[38;5;220m";
+        fputs(SEP, stdout);
+        fputs(col, stdout);
+        /* 📅 U+1F4C5 = F0 9F 93 85 */
+        fputs("\xf0\x9f\x93\x85 wk ", stdout);
+        printf("%d%%", pct);
         fputs("\x1b[0m", stdout);
     }
 

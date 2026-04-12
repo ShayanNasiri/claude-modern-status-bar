@@ -1,20 +1,22 @@
 # claude-modern-status-bar
 
-Native C status line for Claude Code on Windows. Single ~280-line source file,
-compiles to a ~160 KB self-contained `.exe`. Renders in ~21 ms per invocation
-(measured with PowerShell `Measure-Command`) — roughly 70× faster than the
+Native C status line for Claude Code on Windows. Single ~430-line source file,
+compiles to a ~160 KB self-contained `.exe`. Renders in ~16 ms per invocation
+(measured with PowerShell `Measure-Command`) — roughly 90× faster than the
 original bash + python + git + awk pipeline it replaced.
 
 ## What it renders
 
 ```
-📍 <folder>  ┃  🔀 <branch>  ┃  🤖 <model>  ┃  🧠 [██████░░░░░░░░░░░░░░░░░░░░░░] 65%
+📍 <folder>  ┃  🔀 <branch>  ┃  🤖 <model>  ┃  🧠 [██████░░░░░░░░░░░░░░░░░░░░░░] 65%  ┃  ⏰ 5h 23% · ♻ 4h 26m  ┃  📅 wk 41%
 ```
 
 - **Folder**: basename of `current_dir`, bold blue, 📍 U+1F4CD
 - **Branch**: current git branch (or short SHA if detached), color 80, 🔀 U+1F500
 - **Model**: `display_name` from input JSON, color 141, 🤖 U+1F916
-- **Context bar**: 30 chars wide, **filled = FREE space**, color white, 🧠 U+1F9E0
+- **Context bar**: 30 chars wide, **filled = FREE space**, bold pink (color 213), 🧠 U+1F9E0
+- **5-hour usage**: `rate_limits.five_hour.used_percentage` from input JSON, plus a `resets_at` countdown formatted as `47m` / `3h` / `1h 47m` / `<1m`. Color thresholds apply to BOTH the percentage and the countdown text: white (37) < 70%, yellow (220) at 70–89%, red (196) at 90%+. ⏰ U+23F0 (with VS16) for the percentage, ♻ U+267B (with VS16) for the countdown, separated by a gray middle dot · U+00B7 in color 245. The whole segment is omitted if `five_hour` is missing; the countdown half is omitted independently if `resets_at` is missing, zero, or in the past.
+- **Weekly usage**: `rate_limits.seven_day.used_percentage`, same color thresholds, no countdown. 📅 U+1F4C5. Omitted if `seven_day` is missing.
 - **Separator**: U+2503 `┃` in color 245
 
 The bar shows *free* space, not used — matches what `/context` reports as
@@ -90,7 +92,10 @@ If the output looks right (colors, emojis, bar), the binary is healthy.
    file containing `gitdir: <path>`). Saves ~280 ms per render.
 2. **No JSON parser.** `json_find_value()` is a `strstr`-based key search;
    the `":` suffix on the needle is enough to avoid false matches against
-   `"total_input_tokens":` when looking for `"input_tokens":`.
+   `"total_input_tokens":` when looking for `"input_tokens":`. The
+   rate-limit lookups are scoped per-window first (`strstr(input,
+   "\"five_hour\"")`, then look up `used_percentage` inside) so they can't
+   collide with `context_window.used_percentage`.
 3. **Static CRT (`/MT`).** No DLL load at startup — the binary is self
    contained. Removes ~50-80 ms on cold starts.
 4. **Raw UTF-8 byte literals.** Emojis and box-drawing chars are written as
@@ -115,11 +120,18 @@ Only the fields we actually read:
       "cache_creation_input_tokens": 10000,
       "cache_read_input_tokens": 21000
     }
+  },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 23, "resets_at": 1744387200 },
+    "seven_day": { "used_percentage": 41 }
   }
 }
 ```
 
 Nested structure is fine — the `strstr` scan finds keys anywhere in the blob.
+The `rate_limits` block and either window inside it are optional; missing
+fields just drop the corresponding segment from the rendered line.
+`resets_at` is a Unix epoch in seconds.
 
 ## Performance history
 
@@ -128,7 +140,7 @@ Nested structure is fine — the `strstr` scan finds keys anywhere in the blob.
 | Original (bash wrapper + python + git + awk) | ~1500 ms        |
 | All-in-one Python                            | ~420 ms         |
 | `python -SE` (skip `site.py` + env scan)     | ~111 ms         |
-| **Native C (this repo)**                     | **~21 ms**      |
+| **Native C (this repo)**                     | **~16 ms**      |
 
 Timings measured with PowerShell `Measure-Command` piping `test/mock.json`.
 Bash benchmarks add ~80-130 ms of Git Bash fork overhead and are misleading —
@@ -140,7 +152,11 @@ the real cost.
 Edit `statusline.c` and rebuild. The interesting knobs:
 
 - **Colors**: search for `\x1b[38;5;` — 256-color ANSI codes. 34=blue,
-  141=purple, 80=cyan-green, 245=gray, 37=white.
+  141=purple, 80=cyan-green, 213=pink (brain bar), 245=gray, 37=white,
+  220=yellow (rate-limit warn), 196=red (rate-limit crit).
+- **Rate-limit thresholds**: the `if (pct >= 90) ... else if (pct >= 70)`
+  ladders in each rate-limit render block. Edit both blocks (5-hour and
+  weekly) if you want them to stay in sync.
 - **Bar width**: `enum { BAR_W = 30 };` near the bottom of `main()`.
 - **Bar glyphs**: `U+2588` (█ full) and `U+2591` (░ light shade).
 - **Separator**: `static const char SEP[] = ...` — currently `┃`.

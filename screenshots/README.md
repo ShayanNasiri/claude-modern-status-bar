@@ -10,6 +10,7 @@ A screenshot of the rendered status bar in Windows Terminal, showing:
 - Git branch (run inside any git repo)
 - Model name
 - The full context bar with a meaningful free percentage (around 60–80% free is ideal so both the filled and unfilled portions of the bar are visible)
+- The 5-hour and weekly rate-limit segments (only render when Claude Code is actively passing `rate_limits` in the input JSON)
 
 ## Save as
 

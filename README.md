@@ -1,19 +1,21 @@
 # claude-modern-status-bar
 
-A native C status line for [Claude Code](https://docs.claude.com/en/docs/claude-code) on Windows. Single ~280-line source file, compiles to a ~160 KB self-contained `.exe`, renders in **~21 ms** per invocation — roughly **70× faster** than the bash + python + git + awk pipeline most people start with.
+A native C status line for [Claude Code](https://docs.claude.com/en/docs/claude-code) on Windows. Single ~430-line source file, compiles to a ~160 KB self-contained `.exe`, renders in **~16 ms** per invocation — roughly **90× faster** than the bash + python + git + awk pipeline most people start with.
 
 ![Status bar screenshot](screenshots/statusbar.png)
 
 ## What you get
 
 ```
-folder  |  branch  |  model  |  [##############..............] 47%
+folder  |  branch  |  model  |  [bar] 47%  |  5h 23% · 4h 26m  |  wk 41%
 ```
 
 - **Folder** — basename of the current working directory (bold blue)
 - **Branch** — current git branch, or short SHA if detached HEAD (cyan)
 - **Model** — the active Claude model from Claude Code's input JSON (purple)
-- **Context bar** — 30-char bar showing **free space remaining** before auto-compact, with the matching percentage (white)
+- **Context bar** — 30-char bar showing **free space remaining** before auto-compact, with the matching percentage (bold pink)
+- **5-hour usage** — the same percentage `/usage` shows for the rolling 5-hour limit, plus the time until it resets. White under 70%, yellow at 70–89%, red at 90%+. Reset countdown formats as `47m` / `3h` / `1h 47m` / `<1m`. Omitted entirely if Claude Code doesn't pipe in the `rate_limits.five_hour` field; the countdown half is omitted independently if `resets_at` is missing or already in the past.
+- **Weekly usage** — same as above for the rolling 7-day limit, without the countdown. Same color thresholds.
 - **Separator** — gray vertical bar between segments
 
 The context bar shows *free* space (not used), to match what Claude Code's `/context` command labels "Free space". The math accounts for the 16.5% autocompact buffer Claude Code reserves before auto-compaction fires.
@@ -22,14 +24,14 @@ The context bar shows *free* space (not used), to match what Claude Code's `/con
 
 Claude Code lets you set a custom command as your status line. The default approach in most community examples is a bash script that pipes through `jq`, calls `git`, and shells out to `awk` or `python`. On Windows, every one of those is a fork through Git Bash, and the cumulative cost is **~1.5 seconds per render**. That's perceptible keystroke lag, every time you type.
 
-This project replaces all of that with one ~280-line C file that:
+This project replaces all of that with one ~430-line C file that:
 
 - parses just the JSON fields it needs (no `jq`)
 - reads `.git/HEAD` directly (no `git` fork)
 - statically links the C runtime (no DLL load)
 - writes UTF-8 + ANSI colors straight to stdout
 
-The result is **~21 ms per render**, well under the ~30 ms ceiling where keystroke lag becomes noticeable.
+The result is **~16 ms per render**, well under the ~30 ms ceiling where keystroke lag becomes noticeable.
 
 ## Requirements
 
@@ -124,8 +126,9 @@ All knobs live in `statusline.c`. Edit, then run `deploy.bat`.
 | **Bar width** | `enum { BAR_W = 30 };` near the bottom of `main()` | 30 chars |
 | **Bar glyphs** | UTF-8 escapes in the `bar` builder | full block + light shade |
 | **Separator** | `static const char SEP[]` | vertical bar (U+2503) |
-| **Colors** | `\x1b[38;5;<n>m` ANSI 256-color codes | 34=blue, 80=cyan, 141=purple, 245=gray, 37=white |
-| **Emojis** | Raw UTF-8 byte sequences in the final `fputs` calls | folder, branch, robot, brain |
+| **Colors** | `\x1b[38;5;<n>m` ANSI 256-color codes | 34=blue, 80=cyan, 141=purple, 213=pink, 245=gray, 37=white, 220=yellow (warn), 196=red (crit) |
+| **Emojis** | Raw UTF-8 byte sequences in the final `fputs` calls | folder, branch, robot, brain, clock, recycle, calendar |
+| **Rate-limit color thresholds** | the `if (pct >= 90) ... else if (pct >= 70) ...` ladders in the rate-limit render blocks | white < 70%, yellow 70–89%, red ≥ 90% |
 | **Autocompact reserve %** | `double autocompact_pct = 16.5;` | 16.5% |
 
 ### Override the autocompact reserve at runtime
@@ -157,7 +160,7 @@ Measure-Command { Get-Content test\mock.json -Raw | .\statusline.exe } | Select 
 | Original (bash + python + git + awk) | ~1500 ms |
 | All-in-one Python | ~420 ms |
 | `python -SE` (skip `site.py` + env scan) | ~111 ms |
-| **Native C (this repo)** | **~21 ms** |
+| **Native C (this repo)** | **~16 ms** |
 
 Bash benchmarks add ~80-130 ms of Git Bash fork overhead and are misleading. Claude Code spawns the binary via Win32 directly, so PowerShell numbers reflect production cost. **Always measure with PowerShell.**
 

@@ -1,5 +1,7 @@
 # claude-modern-status-bar
 
+[![build](https://github.com/ShayanNasiri/claude-modern-status-bar/actions/workflows/build.yml/badge.svg)](https://github.com/ShayanNasiri/claude-modern-status-bar/actions/workflows/build.yml)
+
 A native C status line for [Claude Code](https://docs.claude.com/en/docs/claude-code) on Windows. Single ~430-line source file, compiles to a ~160 KB self-contained `.exe`, renders in **~21 ms** per invocation — roughly **70× faster** than the bash + python + git + awk pipeline most people start with.
 
 ![Status bar screenshot](screenshots/statusbar.png)

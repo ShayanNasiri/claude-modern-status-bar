@@ -5,6 +5,16 @@ All notable changes to claude-modern-status-bar are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] — 2026-04-22
+
+### Fixed
+
+- **Autocompact reserve now scales with `context_window_size`.** The reserve was previously hardcoded to 16.5% of the window, which is correct on the 200 k window but off by ~13 percentage points on the 1 M extended-context window (the actual reserve is a fixed ~33 k tokens, or 3.3% of 1 M, not 16.5%). The binary now derives the reserve from a fixed 33 000-token budget divided by the reported window size, matching what `/context` displays on both 200 k and 1 M. No code change needed if Anthropic adds further window sizes in the future.
+
+### Added
+
+- **`test/sweep.ps1`** — exhaustive regression test that feeds 22 `(window_size, used_percentage)` combinations through the binary and compares each result against the `/context` formula. Covers 200 k, 1 M, and a hypothetical 500 k window to verify the math is truly dynamic, not hardcoded to the two sizes Claude Code currently ships.
+
 ## [1.1.0] — 2026-04-11
 
 ### Added

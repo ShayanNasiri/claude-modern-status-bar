@@ -37,6 +37,10 @@ jobs:
         shell: cmd
         run: type test\mock.json | statusline.exe
 
+      - name: Regression sweep (free-space math across window sizes)
+        shell: pwsh
+        run: ./test/sweep.ps1
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:

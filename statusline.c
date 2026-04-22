@@ -269,15 +269,16 @@ int main(void) {
     }
 
     /* Autocompact reserve — the slice Claude Code withholds before auto-
-     * compaction fires. Default 16.5% (matches the "Autocompact buffer" row
-     * /context displays: 33k on a 200k window, 165k on a 1M window). The
-     * older fixed 32768-token constant was correct-ish on a 200k window
-     * (off by 232 tokens) but wildly wrong on 1M extended-context models
-     * where it under-reserved by ~132k and inflated the free % by ~13pp.
+     * compaction fires. It's a fixed ~33k tokens regardless of window size
+     * (was 45k before a 2026-Q1 upstream reduction). Expressing it as a
+     * percentage of the window is only coincidentally right on a 200k
+     * window (33k/200k = 16.5%). On a 1M extended-context window the
+     * buffer is still 33k — i.e. 3.3%, not 16.5% — so hardcoding 16.5%
+     * made the free-space number ~13 pp lower than /context reported.
      *
-     * Users can override the default via CLAUDE_AUTOCOMPACT_PCT_OVERRIDE,
-     * matching the env var Claude Code itself honors. */
-    double autocompact_pct = 16.5;
+     * Users can override via CLAUDE_AUTOCOMPACT_PCT_OVERRIDE — the env
+     * var is interpreted as the buffer percentage directly. */
+    double autocompact_pct = (size > 0) ? 33000.0 * 100.0 / (double)size : 16.5;
     const char *env_override = getenv("CLAUDE_AUTOCOMPACT_PCT_OVERRIDE");
     if (env_override && *env_override) {
         char *e;

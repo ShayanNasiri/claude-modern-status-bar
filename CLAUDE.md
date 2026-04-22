@@ -21,22 +21,24 @@ original bash + python + git + awk pipeline it replaced.
 
 The bar shows *free* space, not used — matches what `/context` reports as
 "Free space". Math accounts for the autocompact buffer Claude Code reserves
-before auto-compaction fires (default **16.5 %** of the context window —
-33 k tokens on a 200 k window, 165 k tokens on a 1 M extended-context window):
+before auto-compaction fires — a fixed **~33 k tokens** regardless of
+window size, which works out to **16.5 %** of a 200 k window but only
+**3.3 %** of a 1 M extended-context window:
 
 ```
-used_tokens    = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
-used_pct       = used_tokens / context_window_size × 100
-free_pct       = round(100 − used_pct − autocompact_pct)
+used_tokens     = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
+used_pct        = used_tokens / context_window_size × 100
+autocompact_pct = 33000 / context_window_size × 100
+free_pct        = round(100 − used_pct − autocompact_pct)
 ```
 
 `used_tokens` matches Claude Code's internal `used_percentage` formula —
 **input tokens only, `output_tokens` deliberately excluded** (per the
-statusline docs). The autocompact percentage is taken from
-`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` if the env var is set, otherwise the
-16.5 % default. Expressing it as a percentage (not a fixed token count)
-is load-bearing for extended-context models — the earlier 32768-token
-constant was off by ~13 pp on a 1 M window.
+statusline docs). The autocompact reserve is derived from a fixed
+33 000-token budget divided by `context_window_size`, so the math is
+correct on 200 k, 1 M, or any window size Claude Code ships in the
+future. Users can override via `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — the
+env var is interpreted as the buffer percentage directly.
 
 ## Files
 
@@ -162,10 +164,13 @@ Edit `statusline.c` and rebuild. The interesting knobs:
 - **Separator**: `static const char SEP[] = ...` — currently `┃`.
 - **Emojis**: the raw UTF-8 byte sequences in the `fputs` calls at the
   bottom of `main()`. Comments name the codepoints.
-- **Autocompact reserve**: `double autocompact_pct = 16.5;` — a
-  percentage of `context_window_size`, honors the
-  `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` env var. Do **not** switch back to
-  a fixed token count: it breaks 1 M extended-context windows.
+- **Autocompact reserve**: `autocompact_pct = 33000.0 * 100.0 / size;`
+  — derived from a fixed 33 k-token buffer divided by the window size
+  reported in the JSON, so it stays correct on 200 k, 1 M, or any window
+  size Claude Code adds later. Honors `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`
+  to set the buffer percentage directly. If Claude Code changes the
+  fixed-token budget upstream, update the `33000` constant in
+  `statusline.c`.
 
 After any edit: `deploy.bat`, then open a new Claude Code session (or just
 type anything — the next render will use the new binary).

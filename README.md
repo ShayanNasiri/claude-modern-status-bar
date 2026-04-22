@@ -18,7 +18,7 @@ folder  |  branch  |  model  |  [bar] 47%  |  5h 23% · 4h 26m  |  wk 41%
 - **Weekly usage** — same as above for the rolling 7-day limit, without the countdown. Same color thresholds.
 - **Separator** — gray vertical bar between segments
 
-The context bar shows *free* space (not used), to match what Claude Code's `/context` command labels "Free space". The math accounts for the 16.5% autocompact buffer Claude Code reserves before auto-compaction fires.
+The context bar shows *free* space (not used), to match what Claude Code's `/context` command labels "Free space". The math accounts for the ~33 k-token autocompact buffer Claude Code reserves before auto-compaction fires — 16.5% on a 200 k window, 3.3% on a 1 M extended-context window. The reserve is computed from the `context_window_size` Claude Code reports, so it stays correct on any window size.
 
 ## Why this exists
 
@@ -129,7 +129,7 @@ All knobs live in `statusline.c`. Edit, then run `deploy.bat`.
 | **Colors** | `\x1b[38;5;<n>m` ANSI 256-color codes | 34=blue, 80=cyan, 141=purple, 213=pink, 245=gray, 37=white, 220=yellow (warn), 196=red (crit) |
 | **Emojis** | Raw UTF-8 byte sequences in the final `fputs` calls | folder, branch, robot, brain, clock, recycle, calendar |
 | **Rate-limit color thresholds** | the `if (pct >= 90) ... else if (pct >= 70) ...` ladders in the rate-limit render blocks | white < 70%, yellow 70–89%, red ≥ 90% |
-| **Autocompact reserve %** | `double autocompact_pct = 16.5;` | 16.5% |
+| **Autocompact reserve** | `autocompact_pct = 33000.0 * 100.0 / size;` | ~33 k tokens (16.5% on 200 k window, 3.3% on 1 M) |
 
 ### Override the autocompact reserve at runtime
 
